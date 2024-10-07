@@ -1,0 +1,38 @@
+#!/bin/bash
+# Script to create a new database migration
+# usage: ./cmd/create_migration.sh <migration_name>
+
+# Abort script at first error
+set -e
+
+# Base dir
+BASEDIR=$(dirname "$0")
+
+# change to source directory
+cd "$BASEDIR/.."
+
+# Check if the migrate tool is installed, if not, install it
+if ! command -v migrate >/dev/null; then
+    echo "🛠 'migrate' is not installed. Installing it now..."
+    brew install golang-migrate
+fi
+
+# Check if migration name is provided
+if [ -z "$1" ]; then
+    echo "🚫 Migration name is required."
+    echo "Usage: ./cmd/create_migration.sh <migration_name>"
+    exit 1
+fi
+
+# Create the migration files
+MIGRATION_NAME=$1
+MIGRATION_PATH="db/migrations"
+
+echo "📜 Creating new migration: $MIGRATION_NAME"
+
+migrate create -ext sql -dir "$MIGRATION_PATH" -seq "$MIGRATION_NAME"
+
+echo "✅ Migration $MIGRATION_NAME created successfully in $MIGRATION_PATH"
+
+# change back to the directory where the script has been called
+cd -

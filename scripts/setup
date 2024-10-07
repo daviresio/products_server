@@ -1,0 +1,79 @@
+#!/bin/bash
+# Set up the project and developer tools for the first time
+# usage: ./cmd/setup
+
+# Abort script at first error
+set -e
+
+# Base dir
+BASEDIR=$(dirname "$0")
+
+# change to source directory
+cd "$BASEDIR/.."
+
+# Welcome message
+echo
+echo "🌱 Setup developer dependencies."
+echo "This script will set up the project and developer tools for Go development. We recommend you to execute it only one time."
+echo
+
+# Check if the user is running macOS
+if [[ "$OSTYPE" != "darwin"* ]]; then
+    echo "🚫 This script is only for macOS"
+    exit 1
+fi
+
+# Confirmation prompt
+read -p "Type 'yes' to continue: " -r
+echo
+if [[ $REPLY != 'yes' ]]; then
+    echo "🚫 Setup cancelled."
+    exit 1
+fi
+
+# Install Homebrew if it's not installed
+if ! command -v brew >/dev/null; then
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+else
+    echo "🍺 Homebrew is already installed."
+fi
+
+# Install Docker if it's not installed
+if ! command -v docker >/dev/null; then
+    brew install --cask docker
+else
+    echo "🐳 Docker is already installed."
+fi
+
+# Install Go if it's not installed
+if ! command -v go >/dev/null; then
+    echo "🐹 Installing Go..."
+    brew install go
+else
+    echo "🐹 Go is already installed."
+fi
+
+# Install Air for hot reload if it's not installed
+if ! command -v air >/dev/null; then
+    echo "🔄 Installing Air for hot reload..."
+    curl -sSfL https://raw.githubusercontent.com/cosmtrek/air/master/install.sh | sh -s
+    mv ./bin/air /usr/local/bin/air
+else
+    echo "🔄 Air is already installed."
+fi
+
+# Install migrate for database migrations if it's not installed
+if ! command -v migrate >/dev/null; then
+    echo "🗄 Installing Migrate for database migrations..."
+    brew install golang-migrate
+else
+    echo "🗄 Migrate is already installed."
+fi
+
+echo "📦 Installing project dependencies..."
+go mod tidy
+
+echo "🍃 Environment setup complete. OPEN A NEW TERMINAL WINDOW to use the new environment."
+
+# change back to the directory where the script has been called
+cd -

@@ -1,0 +1,129 @@
+name: Create Version, Build and Deploy
+
+on:
+  push:
+    branches: [main]
+    tags-ignore: ["**"]
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  SERVICE_NAME: ${{ secrets.SERVICE_NAME }}
+  CONTAINER_REGISTRY: ${{ secrets.GCP_CONTAINER_REGISTRY }}
+  IMAGE_GROUP: ${{ secrets.IMAGE_GROUP }}
+  WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.WORKLOAD_IDENTITY_PROVIDER }}
+  SERVICE_ACCOUNT: ${{ secrets.SERVICE_ACCOUNT }}
+
+jobs:
+  version:
+    name: Version
+    concurrency: tagging
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    outputs:
+      semver_tag: ${{ steps.semver-tag.outputs.semver_tag }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calculate semver tag
+        id: semver-tag
+        uses: gandarez/semver-action@v2.0.0
+        with:
+          branching_model: "trunk-based"
+          main_branch_name: "main"
+
+      - name: Create tag release
+        uses: softprops/action-gh-release@v2.0.8
+        with:
+          name: Release ${{ steps.semver-tag.outputs.semver_tag }}
+          tag_name: ${{ steps.semver-tag.outputs.semver_tag }}
+          target_commitish: ${{ github.head_ref || github.ref }}
+          draft: false
+          token: ${{ secrets.TOKEN_PAT }}
+
+  build-image:
+    name: Build image
+    runs-on: ubuntu-latest
+    needs: version
+    outputs:
+      git_tag: ${{ needs.version.outputs.semver_tag }}
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: google-auth
+        name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          token_format: access_token
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Login to Google Artifact Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.CONTAINER_REGISTRY }}
+          username: oauth2accesstoken
+          password: ${{ steps.google-auth.outputs.access_token }}
+
+      - name: Build and Push the Docker image
+        env:
+          GOOGLE_PROJECT: ${{ secrets.GOOGLE_PROJECT }}
+          NODE_OPTIONS: "--max_old_space_size=4096"
+        run: |
+          gcloud auth configure-docker $CONTAINER_REGISTRY
+          docker build -f Dockerfile -t $CONTAINER_REGISTRY/$IMAGE_GROUP/$SERVICE_NAME:${{ needs.version.outputs.semver_tag }} -t $CONTAINER_REGISTRY/$IMAGE_GROUP/$SERVICE_NAME:latest .
+          docker push -a $CONTAINER_REGISTRY/$IMAGE_GROUP/$SERVICE_NAME
+
+      - name: Remove tag if failure
+        if: ${{ failure() }}
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            github.rest.git.deleteRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: "tags/${{ needs.version.outputs.semver_tag }}"
+            })
+
+  deploy-version:
+    name: Deploy version
+    needs: build-image
+    if: ${{ needs.build-image.outputs.git_tag != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - id: google-auth
+        name: Authenticate with Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Debug semver_tag in version job
+        run: |
+          echo "semver_tag: ${{ needs.build-image.outputs.git_tag }}"
+
+      - id: Deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          region: ${{ env.REGION }}
+          service: ${{ env.SERVICE_NAME }}
+          image: ${{ env.CONTAINER_REGISTRY }}/${{ env.IMAGE_GROUP }}/${{ env.SERVICE_NAME }}:${{ needs.build-image.outputs.git_tag }}

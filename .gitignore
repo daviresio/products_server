@@ -1,0 +1,33 @@
+# Binaries
+bin/
+*.exe
+*.out
+*.test
+
+# Vendor directory
+vendor/
+
+# Environment files
+.env
+
+# Editor directories and files
+.vscode
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+*.log
+
+# Dependency cache
+go.sum
+
+# Coverage files
+*.cover
+coverage.out
+
+# MacOS files
+.DS_Store
