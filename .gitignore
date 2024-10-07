@@ -22,9 +22,6 @@ vendor/
 # Logs
 *.log
 
-# Dependency cache
-go.sum
-
 # Coverage files
 *.cover
 coverage.out
