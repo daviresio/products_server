@@ -62,8 +62,8 @@ Para aplicar las migraciones de la base de datos, utilizá el script `migration_
 
 - **Health Check**: `GET /health` - Verifica si el servicio está funcionando correctamente.
 - **Productos**:
-  - `GET /products?page=&search=` - Lista los productos disponibles, con soporte para paginación y filtrado por texto.
-  - `GET /products/{id}` - Devuelve los detalles de un producto específico.
+  - `GET /api/products?page=&search=` - Lista los productos disponibles, con soporte para paginación y filtrado por texto.
+  - `GET /api/products/{id}` - Devuelve los detalles de un producto específico.
 
 ## 📜 Scripts
 
