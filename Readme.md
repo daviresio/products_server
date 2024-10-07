@@ -87,7 +87,7 @@ Actualmente, el proyecto tiene algunas áreas de deuda técnica que necesitan se
 El proyecto utiliza una pipeline de integración continua (CI) para garantizar la calidad del código. La pipeline automatizada ejecuta las siguientes etapas:
 
 1. **Build**: Construye la aplicación y verifica posibles errores.
-2. **Deploy**: Utiliza **Docker** para empaquetar la aplicación y realizar el despliegue.
+2. **Deploy**: Utiliza **Docker** para empaquetar la aplicación y realizar el despliegue
 
 La pipeline realiza un cálculo automático del versionado SemVer. Para esto, la rama debe apuntar a `main` y comenzar con `major/`, `feature/` o `bugfix/`. Después del merge, se calcula el SemVer, se genera la imagen y se envía al artifact de GCP, y la aplicación se despliega automáticamente en Google Cloud Run.
 
